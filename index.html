@@ -3,296 +3,392 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>廈門 7 天 6 夜旅程手冊</title>
+    <title>廈門 7 天 6 夜旅程手冊 - 雲端協作版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-        .card { background: white; border-radius: 16px; shadow-sm; margin-bottom: 24px; overflow: hidden; border: 1px solid #e2e8f0; }
+        .card { background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; overflow: hidden; border: 1px solid #e2e8f0; position: relative; }
         .day-header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 18px 20px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         .day-content { padding: 24px; display: none; }
         .day-content.active { display: block; }
-        .img-placeholder { background: #f1f5f9; border-radius: 12px; height: 180px; display: flex; items-center; justify-content: center; margin-bottom: 12px; color: #94a3b8; font-size: 0.8rem; flex-direction: column; border: 1px dashed #cbd5e1; position: relative; overflow: hidden; }
-        .img-placeholder img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
-        .time-node { position: relative; padding-left: 28px; margin-bottom: 20px; border-left: 2px solid #3b82f6; }
-        .time-node::before { content: ''; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; border: 2px solid white; box-shadow: 0 0 5px rgba(59,130,246,0.5); }
-        .highlight-box { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 0 8px 8px 0; font-size: 0.85rem; color: #92400e; margin: 10px 0; }
-        .food-tag { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 4px; }
-        .shop-tag { background: #e0f2fe; color: #075985; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 4px; }
-        .route-map-box { background: #fdfdfd; border: 2px solid #eff6ff; border-radius: 16px; padding: 12px; margin: 15px 0; }
-        .bullet-point { list-style-type: none; }
-        .bullet-point li::before { content: "•"; color: #3b82f6; font-weight: bold; display: inline-block; width: 1em; margin-left: -1em; }
+        .time-node { position: relative; padding-left: 28px; margin-bottom: 24px; border-left: 2px solid #3b82f6; }
+        .time-node::before { content: ''; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; border: 2px solid white; }
+        
+        .edit-control { display: none; }
+        .edit-mode .edit-control { display: flex; }
+        .edit-mode [contenteditable="true"] {
+            outline: none;
+            background-color: #fffbeb;
+            border-bottom: 1px dashed #f59e0b;
+        }
+
+        /* 同步狀態指示器 */
+        #sync-indicator {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s;
+        }
+        .status-online { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .status-syncing { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+        .status-offline { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+        @media print {
+            .no-print { display: none !important; }
+            .day-content { display: block !important; }
+        }
     </style>
 </head>
-<body class="p-4 md:p-10">
+<body class="p-4 md:p-10 pb-32">
 
-    <div class="max-w-4xl mx-auto">
+    <!-- 同步狀態列 -->
+    <div id="sync-indicator" class="status-offline no-print">
+        <span id="status-dot" class="w-2 h-2 rounded-full bg-red-500"></span>
+        <span id="status-text">正在連線至雲端...</span>
+    </div>
+
+    <div class="max-w-4xl mx-auto" id="app-container">
+        <!-- 控制面板 -->
+        <div class="flex justify-between items-center mb-6 no-print">
+            <div class="text-xs text-slate-400">
+                你的 ID: <span id="user-id-display">...</span>
+            </div>
+            <div class="flex gap-3">
+                <button id="toggleEdit" onclick="toggleEditMode()" class="px-5 py-2 bg-slate-800 text-white rounded-full font-bold text-sm shadow-lg hover:bg-slate-700 transition flex items-center gap-2">
+                    <span id="editIcon">✏️</span> <span id="editText">開啟編輯</span>
+                </button>
+                <button onclick="window.print()" class="px-5 py-2 bg-blue-600 text-white rounded-full font-bold text-sm shadow-lg hover:bg-blue-500 transition flex items-center gap-2">
+                    <span>🖨️</span> 匯出 PDF
+                </button>
+            </div>
+        </div>
+
         <header class="text-center mb-10">
-            <h1 class="text-5xl font-black text-slate-900 tracking-tight">廈門 7D6N 深度指南</h1>
-            <p class="text-blue-600 font-semibold mt-4 tracking-widest uppercase">帆 · 宜 · 玲 專屬旅程 2025</p>
+            <h1 contenteditable="true" id="main-title" class="text-5xl font-black text-slate-900 tracking-tight">廈門 7D6N 深度指南</h1>
+            <p contenteditable="true" id="sub-title" class="text-blue-600 font-semibold mt-4 tracking-widest uppercase">帆 · 宜 · 玲 專屬旅程 2025</p>
             <div class="h-1 w-24 bg-blue-500 mx-auto mt-4 rounded-full"></div>
         </header>
 
         <!-- 工具區 -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div class="card p-6 border-l-8 border-sky-400 bg-sky-50/30">
-                <h2 class="text-xl font-bold mb-3 flex items-center">🌦️ 行程氣候導航</h2>
-                <div class="text-sm text-slate-700">
-                    <p class="text-xs leading-relaxed bg-white/80 p-3 rounded-lg border border-sky-100">
-                        <strong>穿衣建議：</strong> 1/29-2/4 屬冬末，氣溫約 10-21°C。廈門海風大且土樓山區溫差大，建議備好暖暖包與防風外套。
-                    </p>
-                </div>
+                <h2 class="text-xl font-bold mb-3">🌦️ 行程氣候導航</h2>
+                <p contenteditable="true" id="weather-tips" class="text-xs leading-relaxed bg-white/80 p-3 rounded-lg border border-sky-100">
+                    載入中...
+                </p>
             </div>
             <div class="card p-6 border-l-8 border-emerald-400 bg-emerald-50/30">
-                <h2 class="text-xl font-bold mb-3 flex items-center">💱 匯率換算 (1:4.475)</h2>
+                <h2 class="text-xl font-bold mb-3">💱 匯率換算 (1:4.475)</h2>
                 <input type="number" id="cnyInput" class="w-full border p-2 rounded font-bold text-blue-700 mb-2" value="100">
                 <div id="twdResult" class="text-emerald-600 font-bold">台幣預估: NT$ 448</div>
             </div>
         </div>
 
-        <!-- D1 (1/29) -->
-        <div class="card">
-            <div class="day-header" onclick="toggleDay('day1')">
-                <span>D1 (1/29) 抵達 · 初探環島最美弧線</span>
-                <span>▼</span>
-            </div>
-            <div id="day1" class="day-content active">
-                <div class="img-placeholder">
-                    <img src="https://images.unsplash.com/photo-1543097692-fa13c6cd8595?auto=format&fit=crop&w=800&q=80" alt="廈門環島路">
-                </div>
-                <div class="time-node">
-                    <p class="font-bold">12:00 午餐推薦：四里沙茶麵</p>
-                    <p class="text-xs text-slate-500 mt-1">
-                        <span class="food-tag">必吃</span> <strong>四里沙茶麵</strong>：在地老店，推薦加點豆腐蓋、瘦肉。
-                    </p>
-                </div>
-                <div class="time-node">
-                    <p class="font-bold">14:00 - 18:00 環島路漫遊</p>
-                    <p class="text-xs text-slate-500"><strong>廈大沙灘 ➔ 觀音山 ➔ 空中步道</strong>。走林海線健康步道，視線一流。</p>
-                </div>
-                <div class="time-node">
-                    <p class="font-bold">19:00 晚餐與逛街：臨家海景 ➔ 曾厝垵</p>
-                    <p class="text-xs text-slate-500 mt-1">
-                        <span class="food-tag">必吃</span> <strong>臨家海景餐廳</strong>：閩南炸醋肉必點。<br>
-                        <span class="shop-tag">必逛</span> <strong>曾厝垵文創村</strong>：晚上散步買明信片的好地方。
-                    </p>
-                </div>
-            </div>
+        <!-- 行程卡片容器 -->
+        <div id="itinerary-container">
+            <div class="text-center py-10 text-slate-400 italic">正在從雲端下載最新行程...</div>
         </div>
 
-        <!-- D2-D3 鼓浪嶼 (補回地圖與詳細動線) -->
-        <div class="card border-2 border-indigo-600">
-            <div class="day-header !bg-indigo-700" onclick="toggleDay('day2')">
-                <span>D2-D3 (1/30-31) 鼓浪嶼：百年老店與琴聲</span>
-                <span>▼</span>
-            </div>
-            <div id="day2" class="day-content">
-                <div class="route-map-box">
-                    <p class="text-sm font-bold text-indigo-800 mb-3 border-b border-indigo-100 pb-2">🧭 鼓浪嶼西岸出發動線 (觀境別墅起點)</p>
-                    <svg viewBox="0 0 400 220" class="w-full h-auto">
-                        <rect width="400" height="220" fill="#f8fafc" rx="12"/>
-                        <g>
-                            <circle cx="50" cy="110" r="6" fill="#3b82f6"/>
-                            <text x="35" y="130" font-size="10" font-weight="bold">內厝澳碼頭</text>
-                            <rect x="45" y="80" width="10" height="10" fill="#ef4444" rx="2"/>
-                            <text x="60" y="88" font-size="10" font-weight="900" fill="#dc2626">🏨 觀境別墅</text>
-                        </g>
-                        <path d="M 60 110 L 160 50 L 220 100" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow)"/>
-                        <circle cx="170" cy="45" r="4" fill="#6366f1"/>
-                        <text x="140" y="35" font-size="9">風琴博物館</text>
-                        <path d="M 210 110 L 220 90 L 230 110 Z" fill="#22c55e"/>
-                        <text x="205" y="125" font-size="10" font-weight="bold">日光岩</text>
-                        <path d="M 230 120 L 280 180 L 350 150 L 330 80" fill="none" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-orange)"/>
-                        <circle cx="330" cy="70" r="5" fill="#ec4899"/>
-                        <text x="315" y="60" font-size="9" font-weight="bold">🛍️ 龍頭路美食區</text>
-                        <defs>
-                            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" /></marker>
-                            <marker id="arrow-orange" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b" /></marker>
-                        </defs>
-                    </svg>
-                </div>
-                <div class="highlight-box">
-                    💡 <strong>鼓浪嶼「龍頭路」美食攻略：</strong>
-                </div>
-                <div class="space-y-4">
-                    <div class="time-node">
-                        <p class="font-bold text-indigo-900">經典必吃：</p>
-                        <ul class="text-xs text-slate-600 space-y-2 mt-2">
-                            <li>• <span class="food-tag">必吃</span> <strong>葉氏麻糍</strong>：島上唯一手工現包（龍頭路三岔口）。</li>
-                            <li>• <span class="food-tag">必吃</span> <strong>沈家閩南腸粉</strong>：排隊王，皮薄嫩醬汁美。</li>
-                            <li>• <span class="food-tag">必吃</span> <strong>林記魚丸</strong>：湯頭清甜，魚丸彈牙。</li>
-                        </ul>
-                    </div>
-                    <div class="time-node">
-                        <p class="font-bold text-indigo-900">必逛商店：</p>
-                        <ul class="text-xs text-slate-600 space-y-2 mt-2">
-                            <li>• <span class="shop-tag">必逛</span> <strong>趙小姐的店</strong>：復古裝潢，紅豆餡餅很經典。</li>
-                            <li>• <span class="shop-tag">必逛</span> <strong>蘇小糖</strong>：適合買包裝精美的牛軋糖當伴手禮。</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- D4 土樓 (補回地圖與動線) -->
-        <div class="card border-2 border-red-600">
-            <div class="day-header !bg-red-700" onclick="toggleDay('day4')">
-                <span>D4 (2/01) 南靖土樓：避客流精準動線</span>
-                <span>▼</span>
-            </div>
-            <div id="day4" class="day-content">
-                <div class="img-placeholder">
-                    <img src="https://images.unsplash.com/photo-1624640103043-34d673f7336b?auto=format&fit=crop&w=800&q=80" alt="南靖土樓">
-                </div>
-                <div class="route-map-box">
-                    <p class="text-sm font-bold text-red-800 mb-3 border-b border-red-100 pb-2">🗺️ 南靖土樓：先看全景 ➔ 再逛古鎮</p>
-                    <svg viewBox="0 0 400 120" class="w-full h-auto">
-                        <rect width="400" height="120" fill="#fff" rx="12"/>
-                        <text x="20" y="65" font-size="10" fill="#64748b">廈門市區</text>
-                        <path d="M 65 60 L 130 40" fill="none" stroke="#cbd5e1" stroke-width="2" marker-end="url(#arrow-grey)"/>
-                        <g>
-                            <circle cx="150" cy="40" r="12" fill="#fee2e2" stroke="#ef4444"/>
-                            <text x="145" y="44" font-size="10" font-weight="bold" fill="#b91c1c">A</text>
-                            <text x="135" y="65" font-size="9">田螺坑</text>
-                        </g>
-                        <path d="M 170 45 L 280 75" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arrow-red)"/>
-                        <g>
-                            <circle cx="300" cy="80" r="12" fill="#dcfce7" stroke="#22c55e"/>
-                            <text x="295" y="84" font-size="10" font-weight="bold" fill="#166534">B</text>
-                            <text x="290" y="105" font-size="9">雲水謠</text>
-                        </g>
-                        <defs>
-                            <marker id="arrow-grey" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#cbd5e1" /></marker>
-                            <marker id="arrow-red" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444" /></marker>
-                        </defs>
-                    </svg>
-                </div>
-                <div class="time-node">
-                    <p class="font-bold">11:00 田螺坑景區 (A線)</p>
-                    <p class="text-xs text-slate-500">拍「四菜一湯」全景，逛「東歪西斜」裕昌樓。</p>
-                </div>
-                <div class="time-node">
-                    <p class="font-bold">14:00 雲水謠古鎮 (B線)</p>
-                    <p class="text-xs text-slate-500">漫步大榕樹步道。 <span class="food-tag">必吃</span> 塔下村農家鹽雞。</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- D5 集美與海上世界 -->
-        <div class="card border-2 border-amber-500">
-            <div class="day-header !bg-amber-600" onclick="toggleDay('day5')">
-                <span>D5 (2/02) 集美學村：海上列車與摩天輪</span>
-                <span>▼</span>
-            </div>
-            <div id="day5" class="day-content">
-                <div class="time-node">
-                    <p class="font-bold">14:00 集美石鼓路美食街</p>
-                    <ul class="text-xs text-slate-600 space-y-2 mt-2">
-                        <li>• <span class="food-tag">必吃</span> <strong>泰山口燒肉粽</strong>：傳統料多紮實。</li>
-                        <li>• <span class="food-tag">必吃</span> <strong>大社古村沙茶麵</strong>：在地學子最愛。</li>
-                    </ul>
-                </div>
-                <div class="time-node">
-                    <p class="font-bold">17:30 海上世界落日</p>
-                    <p class="text-xs text-slate-500 mt-1">
-                        <span class="shop-tag">必逛</span> <strong>落日咖啡店</strong>：摩天輪下的韓劇感美景。
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <!-- D6 植物園與沙坡尾 -->
-        <div class="card border-2 border-emerald-500">
-            <div class="day-header !bg-emerald-700" onclick="toggleDay('day6')">
-                <span>D6 (2/03) 植物園仙境 · 沙坡尾時光</span>
-                <span>▼</span>
-            </div>
-            <div id="day6" class="day-content">
-                <div class="grid grid-cols-2 gap-3 mb-4">
-                    <div class="img-placeholder h-24">
-                        <img src="https://images.unsplash.com/photo-1595867818082-083862f3d630?auto=format&fit=crop&w=400&q=80" alt="植物園">
-                    </div>
-                    <div class="img-placeholder h-24">
-                        <img src="https://images.unsplash.com/photo-1621252179027-94459d2784df?auto=format&fit=crop&w=400&q=80" alt="沙坡尾">
-                    </div>
-                </div>
-                <div class="time-node">
-                    <p class="font-bold">16:00 沙坡尾 · 藝術西區</p>
-                    <ul class="text-xs text-slate-600 space-y-2 mt-2">
-                        <li>• <span class="shop-tag">必逛</span> <strong>不予文創、琥珀工坊</strong>。</li>
-                        <li>• <span class="food-tag">必吃</span> <strong>Juicy 手作麵包</strong>。</li>
-                    </ul>
-                </div>
-                <div class="time-node">
-                    <p class="font-bold">20:00 中山路夜市</p>
-                    <p class="text-xs text-slate-500 mt-1">
-                        <span class="food-tag">必吃</span> <strong>阿吉仔餡餅</strong>：吉治百貨內買最正宗。
-                    </p>
-                </div>
-            </div>
-        </div>
+        <button onclick="addDay()" class="edit-control w-full py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-bold hover:bg-slate-50 transition mb-8">
+            ➕ 新增一天行程
+        </button>
 
         <!-- 預算表 -->
         <div class="card p-8 border-t-8 border-red-500">
-            <h2 class="text-2xl font-black mb-6 text-red-600 tracking-tight">💰 預估帳本 (每人)</h2>
+            <h2 class="text-2xl font-black mb-6 text-red-600 tracking-tight">💰 預算即時帳本</h2>
             <div class="overflow-x-auto">
                 <table class="w-full text-left">
-                    <tr class="bg-slate-100 text-[10px] text-slate-500 font-bold">
-                        <th class="p-4">項目</th>
-                        <th class="p-4">RMB</th>
-                        <th class="p-4">TWD</th>
-                    </tr>
-                    <tr class="border-b">
-                        <td class="p-4 text-sm font-medium">住宿 5晚</td>
-                        <td class="p-4"><input type="number" class="cny-item w-24 p-2 border rounded" value="777" oninput="calcBudget()"></td>
-                        <td class="p-4 twd-item text-sm font-bold text-slate-400">NT$ 0</td>
-                    </tr>
-                    <tr class="border-b">
-                        <td class="p-4 text-sm font-medium">餐食景點全包</td>
-                        <td class="p-4"><input type="number" class="cny-item w-24 p-2 border rounded" value="2150" oninput="calcBudget()"></td>
-                        <td class="p-4 twd-item text-sm font-bold text-slate-400">NT$ 0</td>
-                    </tr>
-                    <tr class="bg-red-50 font-black">
-                        <td class="p-4 text-red-600">預估總計</td>
-                        <td class="p-4 text-red-600 text-lg" id="totalCNY">2927</td>
-                        <td class="p-4 text-red-700 text-lg" id="totalTWD">NT$ 0</td>
-                    </tr>
+                    <thead>
+                        <tr class="bg-slate-100 text-[10px] text-slate-500 font-bold uppercase">
+                            <th class="p-4">項目</th>
+                            <th class="p-4">人民幣 (CNY)</th>
+                            <th class="p-4">台幣 (TWD)</th>
+                            <th class="p-4 no-print edit-control">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="budget-body">
+                        <!-- 由 Firebase 填入 -->
+                        <tr class="bg-red-50 font-black">
+                            <td class="p-4 text-red-600">預估總計</td>
+                            <td class="p-4 text-red-600 text-lg" id="totalCNY">0</td>
+                            <td class="p-4 text-red-700 text-lg" id="totalTWD">NT$ 0</td>
+                            <td class="no-print edit-control"></td>
+                        </tr>
+                    </tbody>
                 </table>
             </div>
+            <button onclick="addBudgetItem()" class="mt-4 text-xs bg-slate-100 px-3 py-1 rounded-full text-slate-600 hover:bg-slate-200 no-print edit-control">+ 新增預算項</button>
         </div>
-
-        <footer class="text-center text-slate-400 text-sm mt-10 mb-20 pb-10">
-            <span class="text-[10px] block italic text-blue-400">帆 & 宜 & 玲 專屬手冊 v4.3 - 全元素回歸版</span>
-        </footer>
     </div>
 
-    <script>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase 配置 ---
+        const apiKey = ""; 
+        const firebaseConfig = JSON.parse(__firebase_config);
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'xiamen-shared-v1';
+
+        let user = null;
         const RATE = 4.475;
-        document.getElementById('cnyInput').addEventListener('input', function(e) {
-            const val = parseFloat(e.target.value) || 0;
-            document.getElementById('twdResult').innerText = "台幣預估: NT$ " + Math.round(val * RATE).toLocaleString();
+        let isEditMode = false;
+
+        // --- 認證流程 ---
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth initialization failed:", error);
+                updateStatus('offline');
+            }
+        };
+
+        onAuthStateChanged(auth, (u) => {
+            user = u;
+            if (user) {
+                document.getElementById('user-id-display').innerText = user.uid;
+                startRealtimeSync();
+            }
         });
 
-        function toggleDay(id) {
+        initAuth();
+
+        // --- 即時同步邏輯 ---
+        function startRealtimeSync() {
+            if (!user) return;
+            
+            // 修正路徑：使用偶數段數 (6 段) 確保指向一個 Document
+            // artifacts/{appId}/public/data/plans/main
+            const planDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'plans', 'main');
+
+            onSnapshot(planDocRef, (docSnap) => {
+                if (docSnap.exists() && !isEditMode) {
+                    const data = docSnap.data();
+                    updateUI(data);
+                    updateStatus('online');
+                } else if (!docSnap.exists()) {
+                    // 初始化雲端資料
+                    saveToCloud(true);
+                }
+            }, (err) => {
+                console.error("Firestore Sync Error:", err);
+                updateStatus('offline');
+            });
+        }
+
+        // --- UI 更新邏輯 ---
+        function updateUI(data) {
+            if (data.mainTitle) document.getElementById('main-title').innerText = data.mainTitle;
+            if (data.subTitle) document.getElementById('sub-title').innerText = data.subTitle;
+            if (data.weatherTips) document.getElementById('weather-tips').innerHTML = data.weatherTips;
+            if (data.itineraryHtml) {
+                document.getElementById('itinerary-container').innerHTML = data.itineraryHtml;
+            }
+            
+            if (data.budgets) {
+                const tbody = document.getElementById('budget-body');
+                const totalRow = tbody.querySelector('.bg-red-50');
+                tbody.querySelectorAll('.budget-row').forEach(r => r.remove());
+                
+                data.budgets.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b budget-row";
+                    tr.innerHTML = `
+                        <td class="p-4 text-sm font-medium text-slate-700" contenteditable="false">${item.name}</td>
+                        <td class="p-4"><input type="number" class="cny-item w-24 p-2 border border-slate-200 rounded" value="${item.value}" oninput="window.calcBudget()"></td>
+                        <td class="p-4 twd-item text-sm font-bold text-slate-400 italic">NT$ 0</td>
+                        <td class="p-4 no-print edit-control"><button onclick="window.deleteElement(this, 'tr')" class="text-red-400">❌</button></td>
+                    `;
+                    tbody.insertBefore(tr, totalRow);
+                });
+                window.calcBudget();
+            }
+        }
+
+        // --- 儲存邏輯 ---
+        let saveTimeout;
+        async function saveToCloud(force = false) {
+            if (!user) return;
+            if (!isEditMode && !force) return;
+
+            updateStatus('syncing');
+            clearTimeout(saveTimeout);
+
+            saveTimeout = setTimeout(async () => {
+                const budgets = [];
+                document.querySelectorAll('.budget-row').forEach(row => {
+                    const name = row.cells[0].innerText;
+                    const value = row.querySelector('.cny-item').value;
+                    budgets.push({ name, value });
+                });
+
+                const data = {
+                    mainTitle: document.getElementById('main-title').innerText,
+                    subTitle: document.getElementById('sub-title').innerText,
+                    weatherTips: document.getElementById('weather-tips').innerHTML,
+                    itineraryHtml: document.getElementById('itinerary-container').innerHTML,
+                    budgets: budgets,
+                    lastUpdatedBy: user.uid,
+                    timestamp: Date.now()
+                };
+
+                try {
+                    // 使用相同的 6 段偶數路徑
+                    const planDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'plans', 'main');
+                    await setDoc(planDocRef, data);
+                    updateStatus('online');
+                } catch (e) {
+                    console.error("Save failed:", e);
+                    updateStatus('offline');
+                }
+            }, 800);
+        }
+
+        function updateStatus(status) {
+            const indicator = document.getElementById('sync-indicator');
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            
+            indicator.className = `status-${status}`;
+            if (status === 'online') {
+                dot.style.backgroundColor = "#22c55e";
+                text.innerText = "已同步至雲端";
+            } else if (status === 'syncing') {
+                dot.style.backgroundColor = "#eab308";
+                text.innerText = "同步中...";
+            } else {
+                dot.style.backgroundColor = "#ef4444";
+                text.innerText = "離線/連線錯誤";
+            }
+        }
+
+        // --- 全域函數 ---
+        window.toggleEditMode = () => {
+            isEditMode = !isEditMode;
+            const container = document.getElementById('app-container');
+            const btnText = document.getElementById('editText');
+            if (isEditMode) {
+                container.classList.add('edit-mode');
+                btnText.innerText = '完成並同步';
+                document.querySelectorAll('[contenteditable]').forEach(el => el.contentEditable = "true");
+            } else {
+                container.classList.remove('edit-mode');
+                btnText.innerText = '開啟編輯';
+                document.querySelectorAll('[contenteditable]').forEach(el => el.contentEditable = "false");
+                saveToCloud(true);
+            }
+        };
+
+        window.addDay = () => {
+            const container = document.getElementById('itinerary-container');
+            const newId = Date.now();
+            const html = `
+                <div class="card day-card" id="card-${newId}">
+                    <div class="day-header" onclick="window.toggleDay('day-${newId}-content')">
+                        <span contenteditable="true">新日期行程</span>
+                        <div class="flex items-center gap-3 no-print">
+                            <button onclick="window.deleteElement(this, '.day-card')" class="edit-control text-xs bg-red-500 text-white p-1 rounded px-2" style="display:flex">🗑️</button>
+                            <span>▼</span>
+                        </div>
+                    </div>
+                    <div id="day-${newId}-content" class="day-content active">
+                        <div class="nodes-container">
+                            <div class="time-node flex justify-between group">
+                                <div class="flex-grow">
+                                    <p contenteditable="true" class="font-bold">新活動</p>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="window.addNode(this)" class="edit-control mt-4 text-xs text-blue-600 font-bold" style="display:flex">➕ 新增</button>
+                    </div>
+                </div>`;
+            if (container.querySelector('.italic')) container.innerHTML = '';
+            container.insertAdjacentHTML('beforeend', html);
+        };
+
+        window.addNode = (btn) => {
+            const container = btn.previousElementSibling;
+            container.insertAdjacentHTML('beforeend', `
+                <div class="time-node flex justify-between group">
+                    <div class="flex-grow"><p contenteditable="true" class="font-bold">09:00 新行程</p></div>
+                    <button onclick="window.deleteElement(this, '.time-node')" class="edit-control text-red-400 ml-2" style="display:flex">❌</button>
+                </div>`);
+        };
+
+        window.deleteElement = (btn, selector) => {
+            if (confirm('確定刪除？')) {
+                btn.closest(selector).remove();
+                saveToCloud(true);
+            }
+        };
+
+        window.addBudgetItem = () => {
+            const tbody = document.getElementById('budget-body');
+            const totalRow = tbody.querySelector('.bg-red-50');
+            const tr = document.createElement('tr');
+            tr.className = "border-b budget-row";
+            tr.innerHTML = `
+                <td class="p-4 text-sm font-medium text-slate-700" contenteditable="true">新項目</td>
+                <td class="p-4"><input type="number" class="cny-item w-24 p-2 border border-slate-200 rounded" value="0" oninput="window.calcBudget()"></td>
+                <td class="p-4 twd-item text-sm font-bold text-slate-400 italic">NT$ 0</td>
+                <td class="p-4 edit-control" style="display:flex"><button onclick="window.deleteElement(this, 'tr')" class="text-red-400">❌</button></td>`;
+            tbody.insertBefore(tr, totalRow);
+        };
+
+        window.toggleDay = (id) => {
+            if (isEditMode) return;
             const content = document.getElementById(id);
+            if (!content) return;
             const isActive = content.classList.contains('active');
             document.querySelectorAll('.day-content').forEach(el => el.classList.remove('active'));
             if (!isActive) content.classList.add('active');
-        }
+        };
 
-        function calcBudget() {
+        window.calcBudget = () => {
             let totalCNY = 0;
             const cnyInputs = document.querySelectorAll('.cny-item');
             const twdCells = document.querySelectorAll('.twd-item');
             cnyInputs.forEach((input, index) => {
                 const val = parseFloat(input.value) || 0;
                 totalCNY += val;
-                twdCells[index].innerText = "NT$ " + Math.round(val * RATE).toLocaleString();
+                if (twdCells[index]) twdCells[index].innerText = "NT$ " + Math.round(val * RATE).toLocaleString();
             });
             document.getElementById('totalCNY').innerText = totalCNY.toLocaleString();
             document.getElementById('totalTWD').innerText = "NT$ " + Math.round(totalCNY * RATE).toLocaleString();
-        }
+        };
 
-        window.onload = function() { calcBudget(); };
+        document.getElementById('cnyInput').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value) || 0;
+            document.getElementById('twdResult').innerText = "台幣預估: NT$ " + Math.round(val * RATE).toLocaleString();
+        });
     </script>
+= {
+  apiKey: "AIzaSyCx-sCaE-9eVxdVBcND22-8tGzjEulboQw",
+  authDomain: "project-7458991310411203567.firebaseapp.com",
+  projectId: "project-7458991310411203567",
+  storageBucket: "project-7458991310411203567.firebasestorage.app",
+  messagingSenderId: "560298729930",
+  appId: "1:560298729930:web:3ecc8c7756eaceaa41af33"
+}
 </body>
 </html>
